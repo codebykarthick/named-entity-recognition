@@ -66,7 +66,7 @@ class Runner:
             # Early stopping or update best loss and save the model.
             if best_val_loss > val_loss:
                 best_val_loss = val_loss
-                self.save_model()
+                self.save_model(loss=best_val_loss)
             else:
                 counter += 1
                 if counter <= self.patience:

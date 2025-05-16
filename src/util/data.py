@@ -34,8 +34,9 @@ def load_glove_embeddings(glove_path: str = "data/glove.6B.100d.txt") -> tuple[d
     embeddings.append(np.random.uniform(-0.25, 0.25, dimensions))
     counter = 2
 
+    print("Loading GloVe embeddings from file.")
     with open(glove_path, 'r') as f:
-        for line in tqdm(f, desc="Loading GloVe"):
+        for line in f:
             splits = line.split(" ")
             word, embedding = splits[0], list(map(float, splits[1:]))
             word2idx[word] = counter
@@ -49,7 +50,7 @@ def load_glove_embeddings(glove_path: str = "data/glove.6B.100d.txt") -> tuple[d
     return (word2idx, embeddings, dimensions)
 
 
-def load_conll_file(file_path: str, desc: str) -> list[list[str], list[str]]:
+def load_conll_file(file_path: str) -> list[list[str], list[str]]:
     """Loads a single file from the CoNLL Dataset.
 
     Args:
@@ -63,8 +64,9 @@ def load_conll_file(file_path: str, desc: str) -> list[list[str], list[str]]:
     tags = []
     data = []
 
+    print(f"Loading CoNLL data from {file_path}")
     with open(file_path, 'r') as f:
-        for line in tqdm(f, desc=desc):
+        for line in f:
             # Skip the header
             if "-docstart-" in line.lower():
                 continue
@@ -75,8 +77,7 @@ def load_conll_file(file_path: str, desc: str) -> list[list[str], list[str]]:
                 data.append([words, tags])
                 words = []
                 tags = []
-
-            else:
+            elif line != "\n":
                 items = line.strip().lower().split(" ")
                 words.append(items[0])
                 tags.append(items[-1])
@@ -84,6 +85,7 @@ def load_conll_file(file_path: str, desc: str) -> list[list[str], list[str]]:
         if len(words) > 0:
             data.append([words, tags])
 
+    print(f"Dataset loaded.")
     return data
 
 
@@ -100,8 +102,8 @@ def load_conll_dataset(data_path: str = "data/conll2003/") -> tuple[list[list[st
     test_path = os.path.join(data_path, "test.txt")
     valid_path = os.path.join(data_path, "valid.txt")
 
-    train_set = load_conll_file(train_path, desc="Loading Train set")
-    test_set = load_conll_file(test_path, desc="Loading Test set")
-    valid_set = load_conll_file(valid_path, desc="Loading Validation set")
+    train_set = load_conll_file(train_path)
+    test_set = load_conll_file(test_path)
+    valid_set = load_conll_file(valid_path)
 
     return (train_set, test_set, valid_set)

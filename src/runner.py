@@ -89,11 +89,11 @@ class Runner:
         pred_names = [self.label2tag[idx] for idx in all_preds]
         print(classification_report(label_names, pred_names))
 
-    def save_model(self):
+    def save_model(self, loss):
         if not os.path.exists("weights"):
             os.makedirs("weights")
 
-        filename = f"bilstm_crf_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pt"
+        filename = f"bilstm_crf_{datetime.now().strftime('%Y%m%d_%H%M%S')}_loss_{loss}.pth"
 
         filepath = os.path.join("weights", filename)
         torch.save(self.model.state_dict(), filepath)

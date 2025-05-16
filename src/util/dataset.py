@@ -30,7 +30,24 @@ class NERDataset(Dataset):
         self.max_len = max(len(s) for s, _ in conll_data)
         self.embeddings = torch.tensor(word_embeddings, dtype=torch.float32)
 
-    def __getitem__(self, index: int) -> tuple[torch.LongTensor, torch.LongTensor, torch.BoolTensor]:
+        # The final dataset to pull items from
+        self.samples = []
+        # Pad them to be the same length and generate mask for the CRF part
+        for tokens, tags in conll_data:
+            tokens, tags = tokens[:], tags[:]
+            while len(tokens) < self.max_len:
+                tokens.append("<PAD>")
+                tags.append("<PAD>")
+
+            token_vectors = [self.embeddings[self.word2idx.get(
+                token, self.word2idx["<UNK>"])] for token in tokens]
+            tag_ids = [self.tag2idx.get(tag) for tag in tags]
+            mask = [1 if token != "<PAD>" else 0 for token in tokens]
+
+            self.samples.append(
+                (torch.stack(token_vectors), torch.LongTensor(tag_ids), torch.BoolTensor(mask)))
+
+    def __getitem__(self, index: int) -> tuple[torch.FloatTensor, torch.LongTensor, torch.BoolTensor]:
         """Function that pytorch uses to create batch for an epoch through the dataloader
 
         Args:
@@ -39,21 +56,12 @@ class NERDataset(Dataset):
         Returns:
             tuple[torch.LongTensor, torch.LongTensor, torch.BoolTensor]: Returns the token embeddings as tensors, tag ids as tensors and the mask for the CRF.
         """
-        tokens, tags = self.data[index]
-        tokens, tags = tokens[:], tags[:]
+        return self.samples[index]
 
-        counter = len(tokens)
-        while counter < self.max_len:
-            tokens.append("<PAD>")
-            tags.append("<PAD>")
-            counter += 1
-
-        token_vectors = [self.embeddings[self.word2idx.get(
-            token, self.word2idx["<UNK>"])] for token in tokens]
-        tag_ids = [self.tag2idx.get(tag) for tag in tags]
-        mask = [1 if token != "<PAD>" else 0 for token in tokens]
-
-        return torch.LongTensor(token_vectors), torch.LongTensor(tag_ids), torch.BoolTensor(mask)
+    def __len__(self):
+        """Returns length of the dataset
+        """
+        return len(self.data)
 
 
 def create_data_loader(conll_data: list[list[str], list[str]], word2idx: dict[str, int],

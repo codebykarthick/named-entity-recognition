@@ -9,35 +9,51 @@ from torch.optim.adam import Adam
 from torch.utils.data import DataLoader
 from tqdm.notebook import tqdm
 from sklearn.metrics import confusion_matrix, classification_report
+from torch.amp import autocast, GradScaler
 
 
 class Runner:
     def __init__(self, learning_rate: float, train_loader: DataLoader, val_loader: DataLoader,
                  test_loader: DataLoader, input_dim: int, output_dim: int, epochs: int,
                  weight_filename: str, label2tag: dict[int, str], patience: int = 2):
+        self.device = torch.device(
+            "cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.train_loader = train_loader
         self.test_loader = test_loader
         self.val_loader = val_loader
-        self.model = BiLSTMNER(input_dim=input_dim, output_dim=output_dim)
+        self.model = BiLSTMNER(input_dim=input_dim,
+                               output_dim=output_dim).to(self.device)
         self.optimiser = Adam(self.model.parameters(), lr=learning_rate)
         self.epochs = epochs
         self.patience = patience
         self.weight_file = weight_filename
         self.label2tag = label2tag
+        self.scaler = GradScaler() if torch.cuda.is_available() else None
 
     def train(self):
         counter = 0
         best_val_loss = float('inf')
-        train_loss = 0
+
         for epoch in tqdm(range(self.epochs), desc="Training progress"):
+            train_loss = 0
             # Complete one training
             self.model.train()
             for tokens, tags, masks in self.train_loader:
+                tokens = tokens.to(self.device)
+                tags = tags.to(self.device)
+                masks = masks.to(self.device)
+
                 self.optimiser.zero_grad()
-                loss = self.model(x=tokens, tags=tags, mask=masks)
+                with autocast(enabled=torch.cuda.is_available()):
+                    loss = self.model(x=tokens, tags=tags, mask=masks)
                 train_loss += loss.item()
-                loss.backward()
-                self.optimiser.step()
+                if self.scaler:
+                    self.scaler.scale(loss).backward()
+                    self.scaler.step(self.optimiser)
+                    self.scaler.update()
+                else:
+                    loss.backward()
+                    self.optimiser.step()
 
             train_loss /= len(self.train_loader)
 
@@ -61,7 +77,8 @@ class Runner:
         loss = 0
         with torch.no_grad():
             for tokens, tags, masks in self.val_loader:
-                loss += self.model(x=tokens, tags=tags, mask=masks).item()
+                with autocast(enabled=torch.cuda.is_available()):
+                    loss += self.model(x=tokens, tags=tags, mask=masks).item()
 
         loss /= len(self.val_loader)
 
@@ -75,7 +92,8 @@ class Runner:
 
         with torch.no_grad():
             for tokens, tags, masks in self.test_loader:
-                predictions = self.model(tokens, tags=None, mask=masks)
+                with autocast(enabled=torch.cuda.is_available()):
+                    predictions = self.model(tokens, tags=None, mask=masks)
 
                 for pred_seq, true_seq, mask in zip(predictions, tags, masks):
                     true_seq = true_seq[mask.bool()].tolist()

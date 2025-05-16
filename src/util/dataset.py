@@ -80,6 +80,6 @@ def create_data_loader(conll_data: list[list[str], list[str]], word2idx: dict[st
     """
     dataset = NERDataset(conll_data, word2idx, tag2idx, word_embeddings)
     dataloader = DataLoader(dataset, batch_size=batch_size,
-                            shuffle=is_train, num_workers=num_workers)
+                            shuffle=is_train, num_workers=num_workers, pin_memory=True)
 
     return dataloader

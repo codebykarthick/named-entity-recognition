@@ -1,10 +1,10 @@
-from torch.nn import Module, LSTM, Linear
+from torch.nn import Module, LSTM, Linear, Dropout
 from torchcrf import CRF
 import torch
 
 
 class BiLSTMNER(Module):
-    def __init__(self, input_dim: int = 100, hidden_dim: int = 64, output_dim: int = 10):
+    def __init__(self, input_dim: int = 100, hidden_dim: int = 256, output_dim: int = 10):
         """Define the architecture of the neural network for the NER tagger.
 
         Args:
@@ -14,7 +14,10 @@ class BiLSTMNER(Module):
         """
         super().__init__()
         self.blstml1 = LSTM(input_dim, hidden_dim, num_layers=2)
-        self.dense1 = Linear(hidden_dim, output_dim)
+        self.dropout = Dropout(p=0.3)
+        self.dense1 = Linear(hidden_dim, 512)
+        self.dense2 = Linear(512, 1024)
+        self.dense3 = Linear(1024, output_dim)
         self.crf1 = CRF(output_dim, True)
 
     def forward(self, x: torch.Tensor, tags: torch.LongTensor = None, mask: torch.BoolTensor = None):
@@ -30,7 +33,12 @@ class BiLSTMNER(Module):
             _type_: _description_
         """
         emissions, _ = self.blstml1(x)
+        emissions = self.dropout(emissions)
         emissions = self.dense1(emissions)
+        emissions = self.dropout(emissions)
+        emissions = self.dense2(emissions)
+        emissions = self.dropout(emissions)
+        emissions = self.dense3(emissions)
 
         if tags is not None:
             # negative log likelihood loss

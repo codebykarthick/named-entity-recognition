@@ -3,7 +3,8 @@ torchvision==0.22.0+cu128
 torchaudio==2.7.0+cu128
 --extra-index-url https://download.pytorch.org/whl/cu126
 
-notebook==7.4.2
 ipywidgets==8.1.7
+notebook==7.4.2
 pytorch-crf==0.7.2
 scikit-learn==1.6.1
+tqdm==4.67.1

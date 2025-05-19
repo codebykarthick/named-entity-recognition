@@ -8,6 +8,7 @@ ssh-keyscan github.com >> ~/.ssh/known_hosts
 
 # Prompt the user for the Git repo URL
 read -p "Enter the SSH Git repository URL (e.g., git@github.com:user/repo.git): " REPO_URL
+
 # Extract the repo name (strip .git at the end if present)
 REPO_NAME=$(basename -s .git "$REPO_URL")
 

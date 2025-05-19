@@ -23,5 +23,9 @@ git config --global user.email "sriharikarthik2641999@gmail.com"
 
 # Cd and run the setup for installing dependencies
 cd "$REPO_NAME"
+# Update pip
+python -m pip install --upgrade pip
+# Remove old version of pytorch
 pip uninstall torch torchvision torchaudio torchtext -y
+# Install all the needed depdendencies
 pip install -r requirements.txt

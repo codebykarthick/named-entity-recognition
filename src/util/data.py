@@ -1,7 +1,40 @@
-import numpy as np
 import os
 import re
-from tqdm.notebook import tqdm
+
+import numpy as np
+
+
+class DataItem:
+    """A wrapper for the CoNLL data item to make it easier to manage types.
+    """
+
+    def __init__(self, tokens: list[str], tags: list[str]):
+        self.tokens = tokens
+        self.tags = tags
+
+    def get_tokens(self) -> list[str]:
+        """Get the tokens of a single sentence.
+
+        Returns:
+            list[str]: Tokens of the single sentence.
+        """
+        return self.tokens
+
+    def get_tags(self) -> list[str]:
+        """Get the tags of a single sentence.
+
+        Returns:
+            list[str]: Tags of the single sentence.
+        """
+        return self.tags
+
+    def get(self) -> tuple[list[str], list[str]]:
+        """Return both tokens and tags as a tuple.
+
+        Returns:
+            tuple[list[str], list[str]]: The tuple of both tokens and their tags for a sentence.
+        """
+        return (self.tokens, self.tags)
 
 
 def load_glove_embeddings(glove_path: str = "data/glove.6B.100d.txt") -> tuple[dict[str, int], np.ndarray, int]:
@@ -50,7 +83,7 @@ def load_glove_embeddings(glove_path: str = "data/glove.6B.100d.txt") -> tuple[d
     return (word2idx, embeddings, dimensions)
 
 
-def load_conll_file(file_path: str) -> list[list[str], list[str]]:
+def load_conll_file(file_path: str) -> list[DataItem]:
     """Loads a single file from the CoNLL Dataset.
 
     Args:
@@ -74,7 +107,7 @@ def load_conll_file(file_path: str) -> list[list[str], list[str]]:
             # If line is blank finish aggregation for the current line
             # only if there's something in the aggregate
             if line == "\n" and len(words) != 0:
-                data.append([words, tags])
+                data.append(DataItem(words, tags))
                 words = []
                 tags = []
             elif line != "\n":
@@ -83,13 +116,13 @@ def load_conll_file(file_path: str) -> list[list[str], list[str]]:
                 tags.append(items[-1])
 
         if len(words) > 0:
-            data.append([words, tags])
+            data.append(DataItem(words, tags))
 
     print(f"Dataset loaded.")
     return data
 
 
-def load_conll_dataset(data_path: str = "data/conll2003/") -> tuple[list[list[str], list[str]], list[list[str], list[str]], list[list[str], list[str]]]:
+def load_conll_dataset(data_path: str = "data/conll2003/") -> tuple[list[DataItem], list[DataItem], list[DataItem]]:
     """Wrapper function to load train, test and validation datasets of the CoNLL dataset.
 
     Args:

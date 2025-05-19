@@ -1,23 +1,22 @@
-from model.bilstm import BiLSTMNER
-
-from datetime import datetime
 import os
 import sys
+from datetime import datetime
+
 import torch
-from torch import nn
+from sklearn.metrics import classification_report, confusion_matrix
+from torch import GradScaler, autocast, nn
 from torch.optim.adam import Adam
 from torch.utils.data import DataLoader
 from tqdm.notebook import tqdm
-from sklearn.metrics import confusion_matrix, classification_report
-from torch.amp import autocast, GradScaler
+
+from model.bilstm import BiLSTMNER
 
 
 class Runner:
     def __init__(self, learning_rate: float, train_loader: DataLoader, val_loader: DataLoader,
                  test_loader: DataLoader, input_dim: int, output_dim: int, epochs: int,
                  weight_filename: str, label2tag: dict[int, str], patience: int = 2):
-        self.device = torch.device(
-            "cuda") if torch.cuda.is_available() else torch.device("cpu")
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.train_loader = train_loader
         self.test_loader = test_loader
         self.val_loader = val_loader
@@ -44,7 +43,7 @@ class Runner:
                 masks = masks.to(self.device)
 
                 self.optimiser.zero_grad()
-                with autocast(enabled=torch.cuda.is_available()):
+                with autocast(device_type=self.device, enabled=torch.cuda.is_available()):
                     loss = self.model(x=tokens, tags=tags, mask=masks)
                 train_loss += loss.item()
                 if self.scaler:
@@ -77,7 +76,11 @@ class Runner:
         loss = 0
         with torch.no_grad():
             for tokens, tags, masks in self.val_loader:
-                with autocast(enabled=torch.cuda.is_available()):
+                tokens = tokens.to(self.device)
+                tags = tags.to(self.device)
+                masks = masks.to(self.device)
+
+                with autocast(device_type=self.device, enabled=torch.cuda.is_available()):
                     loss += self.model(x=tokens, tags=tags, mask=masks).item()
 
         loss /= len(self.val_loader)
@@ -92,7 +95,11 @@ class Runner:
 
         with torch.no_grad():
             for tokens, tags, masks in self.test_loader:
-                with autocast(enabled=torch.cuda.is_available()):
+                tokens = tokens.to(self.device)
+                tags = tags.to(self.device)
+                masks = masks.to(self.device)
+
+                with autocast(device_type=self.device, enabled=torch.cuda.is_available()):
                     predictions = self.model(tokens, tags=None, mask=masks)
 
                 for pred_seq, true_seq, mask in zip(predictions, tags, masks):
@@ -111,7 +118,7 @@ class Runner:
         if not os.path.exists("weights"):
             os.makedirs("weights")
 
-        filename = f"bilstm_crf_{datetime.now().strftime('%Y%m%d_%H%M%S')}_loss_{loss}.pth"
+        filename = f"bilstm_crf_{datetime.now().strftime('%Y%m%d_%H%M%S')}_loss_{loss:.2f}.pth"
 
         filepath = os.path.join("weights", filename)
         torch.save(self.model.state_dict(), filepath)

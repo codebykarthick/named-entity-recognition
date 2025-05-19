@@ -1,6 +1,6 @@
-from torch.nn import Module, LSTM, Linear, Dropout
-from torchcrf import CRF
 import torch
+from torch.nn import LSTM, Dropout, Linear, Module
+from torchcrf import CRF
 
 
 class BiLSTMNER(Module):
@@ -20,7 +20,7 @@ class BiLSTMNER(Module):
         self.dense3 = Linear(1024, output_dim)
         self.crf1 = CRF(output_dim, True)
 
-    def forward(self, x: torch.Tensor, tags: torch.LongTensor = None, mask: torch.BoolTensor = None):
+    def forward(self, x: torch.Tensor, mask: torch.ByteTensor, tags: torch.LongTensor | None = None):
         """The forward propagation step of the network. Goes through a bidirectional lstm network, followed by a
         dense network and then finally passing through the CRF layer to prevent malformed tags.
 

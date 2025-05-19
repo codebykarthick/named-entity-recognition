@@ -1,4 +1,7 @@
-def bio_tag_dictionary(sample_dataset: list[list[str], list[str]]) -> tuple[dict[str, int], dict[int, str]]:
+from util.data import DataItem
+
+
+def bio_tag_dictionary(sample_dataset: list[DataItem]) -> tuple[dict[str, int], dict[int, str]]:
     """Constructs and returns the dictionary of bio tags and their corresponding integer encoding values for training from the provided sample dataset.
 
     Args:
@@ -9,7 +12,8 @@ def bio_tag_dictionary(sample_dataset: list[list[str], list[str]]) -> tuple[dict
     """
 
     # Get the unique tags sorted from the provided sample dataset so as to not hard code.
-    unique_tags = sorted({tag for _, tags in sample_dataset for tag in tags})
+    unique_tags = sorted(
+        {tag for item in sample_dataset for tag in item.get()[1]})
 
     # Build the dictionary for encoding
     bio_tag_dict = {tag: i for i, tag in enumerate(unique_tags)}
@@ -18,4 +22,4 @@ def bio_tag_dictionary(sample_dataset: list[list[str], list[str]]) -> tuple[dict
     # Inverted dictionary for faster decoding.
     bio_tag_inverted_dict = {v: k for k, v in bio_tag_dict.items()}
 
-    return bio_tag_dict, bio_tag_inverted_dict
+    return (bio_tag_dict, bio_tag_inverted_dict)

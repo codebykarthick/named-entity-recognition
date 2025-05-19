@@ -1,10 +1,14 @@
+import os
+
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
+
+from util.data import DataItem
 
 
 class NERDataset(Dataset):
-    def __init__(self, conll_data: list[list[str], list[str]], word2idx: dict[str, int], tag2idx: dict[str, int], word_embeddings: np.ndarray):
+    def __init__(self, conll_data: list[DataItem], word2idx: dict[str, int], tag2idx: dict[str, int], word_embeddings: np.ndarray):
         """Create the dataset instance from the provided CoNLL data loaded from the files.
 
         Args:
@@ -27,13 +31,14 @@ class NERDataset(Dataset):
 
         self.word2idx = word2idx
         self.tag2idx = tag2idx
-        self.max_len = max(len(s) for s, _ in conll_data)
+        self.max_len = max(len(item.get()[0]) for item in conll_data)
         self.embeddings = torch.tensor(word_embeddings, dtype=torch.float32)
 
         # The final dataset to pull items from
         self.samples = []
         # Pad them to be the same length and generate mask for the CRF part
-        for tokens, tags in conll_data:
+        for item in conll_data:
+            tokens, tags = item.get()
             tokens, tags = tokens[:], tags[:]
             while len(tokens) < self.max_len:
                 tokens.append("<PAD>")
@@ -45,9 +50,9 @@ class NERDataset(Dataset):
             mask = [1 if token != "<PAD>" else 0 for token in tokens]
 
             self.samples.append(
-                (torch.stack(token_vectors), torch.LongTensor(tag_ids), torch.BoolTensor(mask)))
+                (torch.stack(token_vectors), torch.tensor(tag_ids, dtype=torch.int64), torch.tensor(mask, dtype=torch.uint8)))
 
-    def __getitem__(self, index: int) -> tuple[torch.FloatTensor, torch.LongTensor, torch.BoolTensor]:
+    def __getitem__(self, index: int) -> tuple[torch.FloatTensor, torch.LongTensor, torch.ByteTensor]:
         """Function that pytorch uses to create batch for an epoch through the dataloader
 
         Args:
@@ -64,20 +69,28 @@ class NERDataset(Dataset):
         return len(self.data)
 
 
-def create_data_loader(conll_data: list[list[str], list[str]], word2idx: dict[str, int],
+def create_data_loader(conll_data: list[DataItem], word2idx: dict[str, int],
                        tag2idx: dict[str, int], word_embeddings: np.ndarray, batch_size: int = 16,
-                       num_workers: int = 4, is_train: bool = True) -> DataLoader:
+                       is_train: bool = True) -> DataLoader:
     """Create the dataloader for the corresponding dataset
 
     Args:
         conll_data (list[list[str], list[str]]): The data loaded from the CoNLL dataset file.
         word2idx (dict[str, int]): The word to id dictionary created as part of GloVe processing.
         tag2idx (dict[str, int]): The tag to id dictionary created as part of loading CoNLL dataset.
+        word_embeddings (np.ndarray): The array of word_embeddings of each word in the vocabulary.
+        batch_size (int): Size of the batch to be used.
         is_train (bool, optional): Do shuffling if it is a training set. Defaults to True.
 
     Returns:
         DataLoader: PyTorch dataloader instance to be used in the actual training.
     """
+    num_workers = 4
+    core_count = os.cpu_count()
+
+    if core_count is not None:
+        num_workers = min(num_workers, core_count // 2)
+
     dataset = NERDataset(conll_data, word2idx, tag2idx, word_embeddings)
     dataloader = DataLoader(dataset, batch_size=batch_size,
                             shuffle=is_train, num_workers=num_workers, pin_memory=True)

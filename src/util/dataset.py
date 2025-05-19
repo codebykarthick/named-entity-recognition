@@ -89,7 +89,7 @@ def create_data_loader(conll_data: list[DataItem], word2idx: dict[str, int],
     core_count = os.cpu_count()
 
     if core_count is not None:
-        num_workers = min(num_workers, core_count // 2)
+        num_workers = max(num_workers, core_count // 2)
 
     dataset = NERDataset(conll_data, word2idx, tag2idx, word_embeddings)
     dataloader = DataLoader(dataset, batch_size=batch_size,

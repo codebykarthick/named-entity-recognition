@@ -2,6 +2,7 @@ import os
 import sys
 from datetime import datetime
 
+import numpy as np
 import torch
 from sklearn.metrics import classification_report, confusion_matrix
 from torch import GradScaler, autocast, nn
@@ -13,6 +14,9 @@ from model.bilstm import BiLSTMNER
 
 
 class Runner:
+    """Bench for training, validating and testing performance of the NER Model.
+    """
+
     def __init__(self, learning_rate: float, train_loader: DataLoader, val_loader: DataLoader,
                  test_loader: DataLoader, input_dim: int, output_dim: int, epochs: int,
                  weight_filename: str, label2tag: dict[int, str], patience: int = 2):
@@ -30,6 +34,9 @@ class Runner:
         self.scaler = GradScaler() if torch.cuda.is_available() else None
 
     def train(self):
+        """Trains the model on the configured number of epochs with early stopping if needed. Saves models
+        if performance improves.
+        """
         counter = 0
         best_val_loss = float('inf')
 
@@ -71,7 +78,12 @@ class Runner:
                 if counter <= self.patience:
                     break
 
-    def validate(self):
+    def validate(self) -> float:
+        """Validates and returns the validation loss to decide whether to continue training or stop.
+
+        Returns:
+            float: Validation loss of the current model instance.
+        """
         self.model.eval()
         loss = 0
         with torch.no_grad():
@@ -88,6 +100,8 @@ class Runner:
         return loss
 
     def test(self):
+        """Measures the performance of the model (precision, recall, F1) on a separate test data.
+        """
         self.load_model()
         self.model.eval()
         all_preds = []
@@ -114,7 +128,29 @@ class Runner:
         pred_names = [self.label2tag[idx] for idx in all_preds]
         print(classification_report(label_names, pred_names))
 
-    def save_model(self, loss):
+    def predict(self, sentence: str, word2idx: dict[str, int], tag2label: dict[str, int], embeddings: np.ndarray) -> list[str]:
+        words = sentence.strip().lower().split(" ")
+        with torch.no_grad():
+            # Unsqueeze is needed to account for the batch dimension.
+            # Get the mask
+            mask = torch.ByteTensor(
+                [1 if word != "<PAD>" else 0 for word in words]).unsqueeze(0).to(self.device)
+            # Get the tokens and then their embeddings
+            tokens_vector = torch.stack(
+                [torch.tensor(embeddings[word2idx.get(word, word2idx["<UNK>"])]) for word in words]).unsqueeze(0).to(self.device)
+            with autocast(device_type=self.device, enabled=torch.cuda.is_available()):
+                predictions = self.model(
+                    tokens_vector, tags=None, mask=mask)[0]
+        prediction_labels = [self.label2tag[label] for label in predictions]
+
+        return prediction_labels
+
+    def save_model(self, loss: float):
+        """Save the model with the loss in the saved file name.
+
+        Args:
+            loss (float): The loss to add to the file name to save the weights.
+        """
         if not os.path.exists("weights"):
             os.makedirs("weights")
 
@@ -124,6 +160,8 @@ class Runner:
         torch.save(self.model.state_dict(), filepath)
 
     def load_model(self):
+        """Load the model from the configured file name in self.weight_file.
+        """
         if not os.path.exists("weights"):
             print("No weights directory present, probably no training happened.")
             sys.exit(1)

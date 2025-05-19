@@ -4,7 +4,7 @@ from torchcrf import CRF
 
 
 class BiLSTMNER(Module):
-    def __init__(self, input_dim: int = 100, hidden_dim: int = 256, output_dim: int = 10):
+    def __init__(self, input_dim: int = 100, hidden_dim: int = 384, output_dim: int = 10):
         """Define the architecture of the neural network for the NER tagger.
 
         Args:

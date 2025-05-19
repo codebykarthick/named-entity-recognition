@@ -23,4 +23,5 @@ git config --global user.email "sriharikarthik2641999@gmail.com"
 
 # Cd and run the setup for installing dependencies
 cd "$REPO_NAME"
+pip uninstall torch torchvision torchaudio torchtext -y
 pip install -r requirements.txt

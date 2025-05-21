@@ -70,8 +70,8 @@ class NERDataset(Dataset):
 
 
 def create_data_loader(conll_data: list[DataItem], word2idx: dict[str, int],
-                       tag2idx: dict[str, int], word_embeddings: np.ndarray, batch_size: int = 16,
-                       is_train: bool = True) -> DataLoader:
+                       tag2idx: dict[str, int], num_workers: int, word_embeddings: np.ndarray,
+                       batch_size: int = 16, is_train: bool = True) -> DataLoader:
     """Create the dataloader for the corresponding dataset
 
     Args:
@@ -85,11 +85,10 @@ def create_data_loader(conll_data: list[DataItem], word2idx: dict[str, int],
     Returns:
         DataLoader: PyTorch dataloader instance to be used in the actual training.
     """
-    num_workers = 4
     core_count = os.cpu_count()
 
     if core_count is not None:
-        num_workers = max(num_workers, core_count // 2)
+        num_workers = min(num_workers, core_count // 2)
 
     dataset = NERDataset(conll_data, word2idx, tag2idx, word_embeddings)
     dataloader = DataLoader(dataset, batch_size=batch_size,
